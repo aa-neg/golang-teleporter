@@ -1,0 +1,6 @@
+{
+    "alias": {
+        "working": "hello",
+        "somethingElse": "greetings"
+    }
+}
