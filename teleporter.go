@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"fmt"
+	"log"
 	"flag"
 	// "bufio"
 	// "io"
@@ -23,6 +24,10 @@ func handleErr(err error) {
 		fmt.Println("Shit our error is bad", err)
 		panic(err)
 	}
+}
+
+func (config *configStruct) addAlias(alias string, path string) {
+	config.Alias[alias] = path
 }
 
 func main() {
