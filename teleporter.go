@@ -4,6 +4,10 @@ import (
 	"os"
 	"fmt"
 	"log"
+	"github.com/kardianos/osext"
+	"github.com/olekukonko/tablewriter"
+	"github.com/urfave/cli"
+	// "flag"
 	// "flag"
 	// "bufio"
 	// "io"
@@ -12,23 +16,99 @@ import (
 )
 
 func main() {
-	operationType := os.Args[1]
+	executableFolder, err := osext.ExecutableFolder()
+	handleErr(err)
 
-	fmt.Println(operationType)
+	config := loadConfiguration(executableFolder)
 
-	config := loadConfiguration(" ")
+	app := cli.NewApp()
 
-	log.Println(config);
+	app.Name = "Teleporter"
 
-	config.addAlias("new", "path")
+	app.Usage = "Alias paths and teleport to them!"
 
-	log.Println(config)
+	app.Commands = []cli.Command{
+		{
+			Name: "add",
+			Aliases: []string{"a"},
+			Usage: "Add an alias, <alis name> <optional path, default current>",
+			Action: func(c *cli.Context) error {
+				log.Println("We selected add:", c.Args())
+				return nil
+			},
+		},
+		{
+			Name: "remove",
+			Aliases: []string{"r", "rm"},
+			Usage: "Remove an alias",
+			Action: func(c *cli.Context) error {
+				log.Println("We have removed an alias", c.Args())
+				return nil
+			},
+		},
+		{
+			Name: "list",
+			Aliases: []string{"l","ls"},
+			Usage: "List current aliases",
+			Action: func(c *cli.Context) error {
+				log.Println("We will list our current aliases")
+				for alias, path := range config.Alias {
+					fmt.Println("Alias: ", alias, "Path: ", path)
+				}
+				return nil
+			},
+		},
+		{
+			Name: "teleport",
+			Aliases: []string{"to", "go"},
+			Usage: "Teleport to an alias location",
+			Action: func(c *cli.Context) error {
+				log.Println("About to teleport somewhere?")
+				return nil
+			},
+		},
+	}
 
-	config.removeAlias("new")
+	app.Run(os.Args)
 
-	log.Println(config)
+	// if len(os.Args) < 2 {
+	// 	log.Println("Invalid usage see --help for details")
+	// 	os.Exit(1)
+	// }
 
-	config.saveConfiguration("")
+	// addAliasCommand := flag.NewFlagSet("add", flag.ExitOnError)
+	// removeAliasCommand := flag.NewFlagSet("remove", flag.ExitOnError)
+	// listCommand := flag.NewFlagSet("list", flag.ExitOnError)
+	// teleportCommand := flag.NewFlagSet("to", flag.ExitOnError)
+
+	// availableCommands := map[string]interface{}{
+	// 	"add": addAliasCommand, 
+	// 	"remove" :removeAliasCommand,
+	// 	"list": listCommand,
+	// 	"to": teleportCommand,
+	// }
+
+	// if  flagSet, exists := availableCommands[os.Args[1]]; exists {
+	// 	log.Println("here are our arguments")
+	// 	log.Println(flagSet)
+	// } else {
+	// 	log.Println("Invalid arguments.")
+	// 	os.Exit(1)
+	// }
+	// operationType := os.Args[1]
+	// var executableFolder string
+	
+	// log.Println(config);
+
+	// config.addAlias("new", "path")
+
+	// log.Println(config)
+
+	// config.removeAlias("new")
+
+	// log.Println(config)
+
+	// config.saveConfiguration(executableFolder)
 
 }
 
@@ -44,12 +124,11 @@ type configStruct struct {
 }
 
 func loadConfiguration(location string) configStruct {
-	configBytes, err := ioutil.ReadFile("./config.json")
+	configBytes, err := ioutil.ReadFile(location + "/config.json")
 	handleErr(err)
 	var config configStruct
 	err2 := json.Unmarshal(configBytes, &config)
 	handleErr(err2)
-	log.Println(config)
 	return config
 }
 
@@ -61,9 +140,9 @@ func (config *configStruct) removeAlias(alias string) {
 	delete(config.Alias, alias)
 }
 
-func (config *configStruct) saveConfiguration(saveLocation string) {
+func (config *configStruct) saveConfiguration(location string) {
 	configBytes, err := json.MarshalIndent(config, "", "    ")
 	handleErr(err)
-	writeErr := ioutil.WriteFile(saveLocation + "./config.json", configBytes, 0755)
+	writeErr := ioutil.WriteFile(location + "/config.json", configBytes, 0755)
 	handleErr(writeErr)
 }
