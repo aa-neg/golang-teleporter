@@ -7,12 +7,9 @@ import (
 	"github.com/kardianos/osext"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
-	// "flag"
-	// "flag"
-	// "bufio"
-	// "io"
 	"io/ioutil"
 	"encoding/json"
+	"path/filepath"
 )
 
 func main() {
@@ -32,18 +29,16 @@ func main() {
 			Name: "add",
 			Aliases: []string{"a"},
 			Usage: "Add an alias, <alis name> <optional path, default current>",
-			Action: func(c *cli.Context) error {
-				log.Println("We selected add:", c.Args())
-				return nil
+			Action: func(c *cli.Context) {
+				log.Println(addAlias(c, config, executableFolder))
 			},
 		},
 		{
 			Name: "remove",
 			Aliases: []string{"r", "rm"},
 			Usage: "Remove an alias",
-			Action: func(c *cli.Context) error {
-				log.Println("We have removed an alias", c.Args())
-				return nil
+			Action: func(c *cli.Context) {
+				log.Println(removeAlias(c, config, executableFolder))
 			},
 		},
 		{
@@ -51,70 +46,64 @@ func main() {
 			Aliases: []string{"l","ls"},
 			Usage: "List current aliases",
 			Action: func(c *cli.Context) error {
-				log.Println("We will list our current aliases")
-				for alias, path := range config.Alias {
-					fmt.Println("Alias: ", alias, "Path: ", path)
-				}
+				fmt.Println("")
+				listAliases(config.Alias)
+				fmt.Println("")
 				return nil
 			},
 		},
 		{
 			Name: "teleport",
 			Aliases: []string{"to", "go"},
-			Usage: "Teleport to an alias location",
-			Action: func(c *cli.Context) error {
-				log.Println("About to teleport somewhere?")
-				return nil
+			Usage: "Teleport to an alias location, <alias name>",
+			Action: func(c *cli.Context) {
+				log.Println(teleportTo(c, config))
 			},
 		},
 	}
 
 	app.Run(os.Args)
 
-	// if len(os.Args) < 2 {
-	// 	log.Println("Invalid usage see --help for details")
-	// 	os.Exit(1)
-	// }
+}
 
-	// addAliasCommand := flag.NewFlagSet("add", flag.ExitOnError)
-	// removeAliasCommand := flag.NewFlagSet("remove", flag.ExitOnError)
-	// listCommand := flag.NewFlagSet("list", flag.ExitOnError)
-	// teleportCommand := flag.NewFlagSet("to", flag.ExitOnError)
+func teleportTo(context *cli.Context, config configStruct) string {
+	args := context.Args()
 
-	// availableCommands := map[string]interface{}{
-	// 	"add": addAliasCommand, 
-	// 	"remove" :removeAliasCommand,
-	// 	"list": listCommand,
-	// 	"to": teleportCommand,
-	// }
+	switch len(args) {
+		case 0:
+			return "Please specify an alias to teleport to"
+        case 1:
+			if filePath, exists := config.Alias[args[0]]; exists {
+				fmt.Println(filePath)
+				os.Exit(2)
+			} else {
+				return "Alias doesn't exist"
+			}
+        default:
+			return "Invalid numbre of arguments"
+	}
 
-	// if  flagSet, exists := availableCommands[os.Args[1]]; exists {
-	// 	log.Println("here are our arguments")
-	// 	log.Println(flagSet)
-	// } else {
-	// 	log.Println("Invalid arguments.")
-	// 	os.Exit(1)
-	// }
-	// operationType := os.Args[1]
-	// var executableFolder string
-	
-	// log.Println(config);
+	return ""
+}
 
-	// config.addAlias("new", "path")
+func listAliases(aliasDict map[string]string) {
 
-	// log.Println(config)
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Alias", "Path"})
+	table.SetBorders(tablewriter.Border{Left: false, Top:false, Right: false, Bottom: false})
+	table.SetCenterSeparator("  ")
+	table.SetColumnSeparator("  ")
+	table.SetRowSeparator("-")
+	for alias, path := range aliasDict {
+		table.Append([]string{alias, filepath.Clean(path)})
+	}
 
-	// config.removeAlias("new")
-
-	// log.Println(config)
-
-	// config.saveConfiguration(executableFolder)
-
+	table.Render()
 }
 
 func handleErr(err error) {
 	if err != nil {
-		fmt.Println("Shit our error is bad", err)
+		fmt.Println("Shit hapened: ", err)
 		panic(err)
 	}
 }
@@ -132,15 +121,68 @@ func loadConfiguration(location string) configStruct {
 	return config
 }
 
-func (config *configStruct) addAlias(alias string, path string) {
-	config.Alias[alias] = path
+func pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
 }
 
-func (config *configStruct) removeAlias(alias string) {
-	delete(config.Alias, alias)
+func addAlias(context *cli.Context, config configStruct, executableFolder string) string{
+	args := context.Args()
+	switch len(args) {
+		case 0:
+			return "Please specifty an alias"
+        case 1:
+			dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+			handleErr(err)
+			if path, exists := config.Alias[args[0]]; exists {
+				 return ("Alias: " + args[0] + " already exists as path: " + path + " . Please remove before adding.")
+			} else {
+				config.Alias[args[0]] = dir
+				saveConfiguration(config, executableFolder)
+			}
+        case 2:
+            if exists, _ := pathExists(args[1]); exists {
+				config.Alias[args[0]] = args[1]
+				saveConfiguration(config, executableFolder)
+			} else {
+				return "Unable to add alias. Invalid path."
+			}
+        default:
+			return "Invalid number of arguments. See --help."
+    
+	}
+
+	return ""
 }
 
-func (config *configStruct) saveConfiguration(location string) {
+func removeAlias(context *cli.Context, config configStruct, executableFolder string) string {
+	args := context.Args()
+
+	switch len(args) {
+		case 0:
+			return "Please specify an alias to remove"
+        case 1:
+			if _, exists := config.Alias[args[0]]; exists {
+				delete(config.Alias, args[0])
+				saveConfiguration(config, executableFolder)
+				return "Removed alias: " + args[0]
+			} else {
+				return "Alias doesn't exist"
+			}
+        default:
+			return "Invalid numbre of arguments"
+	}
+
+	return ""
+}
+
+func saveConfiguration(config configStruct,location string) {
 	configBytes, err := json.MarshalIndent(config, "", "    ")
 	handleErr(err)
 	writeErr := ioutil.WriteFile(location + "/config.json", configBytes, 0755)

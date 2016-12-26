@@ -1,6 +1,8 @@
 {
     "alias": {
+        "blog": "C:\\site\\blog",
+        "lol": "I:\\code\\golang-teleporter",
         "somethingElse": "greetings",
-        "working": "hello"
+        "trol": "I:\\code\\golang-teleporter"
     }
 }
