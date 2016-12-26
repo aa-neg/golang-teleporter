@@ -4,20 +4,33 @@ import (
 	"os"
 	"fmt"
 	"log"
-	"flag"
+	// "flag"
 	// "bufio"
 	// "io"
 	"io/ioutil"
 	"encoding/json"
 )
 
-type configStruct struct {
-	Alias map[string]string `json:"alias"`
-}
+func main() {
+	operationType := os.Args[1]
 
-// type configStruct struct {
-// 	alias map[string]interface{}
-// }
+	fmt.Println(operationType)
+
+	config := loadConfiguration(" ")
+
+	log.Println(config);
+
+	config.addAlias("new", "path")
+
+	log.Println(config)
+
+	config.removeAlias("new")
+
+	log.Println(config)
+
+	config.saveConfiguration("")
+
+}
 
 func handleErr(err error) {
 	if err != nil {
@@ -26,40 +39,31 @@ func handleErr(err error) {
 	}
 }
 
+type configStruct struct {
+	Alias map[string]string `json:"alias"`
+}
+
+func loadConfiguration(location string) configStruct {
+	configBytes, err := ioutil.ReadFile("./config.json")
+	handleErr(err)
+	var config configStruct
+	err2 := json.Unmarshal(configBytes, &config)
+	handleErr(err2)
+	log.Println(config)
+	return config
+}
+
 func (config *configStruct) addAlias(alias string, path string) {
 	config.Alias[alias] = path
 }
 
-func main() {
+func (config *configStruct) removeAlias(alias string) {
+	delete(config.Alias, alias)
+}
 
-	operationType := os.Args[1]
-
-	fmt.Println(operationType)
-
-	helpMessage := flag.String("help", "did you require any help mate?", "more help")
-
-	flag.Parse()
-
-	fmt.Println(helpMessage)
-
-	var config configStruct
-
-	
-	configBytes, err := ioutil.ReadFile("./config.json")
+func (config *configStruct) saveConfiguration(saveLocation string) {
+	configBytes, err := json.MarshalIndent(config, "", "    ")
 	handleErr(err)
-
-	err2 := json.Unmarshal(configBytes, &config)
-	handleErr(err2)
-
-	fmt.Println("Here is our config")
-	fmt.Println(config)
-
-	alias := config.Alias["working"]
-	fmt.Println("here is our alias")
-	fmt.Println(alias)
-	// fmt.Println(config["alias"])
-	// fmt.Println(config["alias"]["working"])
-
-
-
+	writeErr := ioutil.WriteFile(saveLocation + "./config.json", configBytes, 0755)
+	handleErr(writeErr)
 }
